@@ -1,17 +1,46 @@
-<h2>Shape Creator</h2>
-<p>Count: <input id="count" type="number" value="5"></p>
-<button id="create">Create</button>
-<button id="cancel">Cancel</button>
-<script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/thomas-lowry/figma-plugin-ds/dist/figma-plugin-ds.css">
 
-document.getElementById('create').onclick = () => {
-  const textbox = document.getElementById('count');
-  const count = parseInt(textbox.value, 10);
-  parent.postMessage({ pluginMessage: { type: 'create-shapes', count } }, '*')
-}
+<style>
+  body {
+    padding: 2em;
+  }
+  div {
+    margin: 1em;
+  }
+  input {
+    display: block;
+  }
+</style>
 
-document.getElementById('cancel').onclick = () => {
-  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
-}
+<h1>Pichunter</h1>
 
-</script>
+<div>
+  <label for="username">username</label>
+  <input class="input__field" type="text" placeholder="Your Pichunter username" id="username">
+
+  <label for="name">name</label>
+  <input class="input__field" type="text" placeholder="Your Pichunter display name" id="name">
+
+  <label for="description">description</label>
+  <input class="textarea" type="textarea" rows="2" placeholder="Your post goes here" id="description">
+</div>
+
+<div class="switch">
+  <input class="switch__toggle" type="checkbox" id="dark-mode-on">
+  <label class="switch__label" for="dark-mode-on">Dark Mode</label>
+</div>
+
+<div class="radio">
+  <input id="radioButton1" type="radio" class="radio__button" name="radioGroup">
+  <label for="radioButton1" class="radio__label">No Image</label>
+
+  <input id="radioButton2" type="radio" class="radio__button" name="radioGroup">
+  <label for="radioButton2" class="radio__label">Single Image</label>
+
+  <input id="radioButton3" type="radio" class="radio__button" name="radioGroup">
+  <label for="radioButton3" class="radio__label">Carousel</label>
+</div>
+
+<div>
+  <button class="button button--primary" id="submit-post">Submit</button>
+</div>

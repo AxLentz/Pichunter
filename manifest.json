@@ -7,13 +7,13 @@
   "enableProposedApi": false,
   "documentAccess": "dynamic-page",
   "editorType": [
-    "figma",
-    "figjam"
+    "figma"
   ],
   "ui": "ui.html",
   "networkAccess": {
     "allowedDomains": [
-      "none"
+      "https://cdn.jsdelivr.net/gh/thomas-lowry/figma-plugin-ds/dist/",
+      "https://rsms.me/"
     ]
   }
 }
