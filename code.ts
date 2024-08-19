@@ -9,10 +9,10 @@ figma.ui.onmessage = pluginMessage => {
     const postComponentSet = figma.root.findOne(
         node => node.type == "COMPONENT_SET" && node.name == "post"
     ) as ComponentSetNode
-    const defaultVariant = postComponentSet.defaultVariant as ComponentNode
-    const defaultDark = figma.root.findOne(
-        node => node.type == "COMPONENT" && node.name == "Image=none, Dark mode=true"
-    ) as ComponentNode
+
+    let selectedVariant
+
+    console.log(pluginMessage.imageVariant)
 
     // console.log(postComponentSet)
     // console.log(postComponentSet.children)
@@ -26,11 +26,43 @@ figma.ui.onmessage = pluginMessage => {
 
     if (pluginMessage.darkModeState == true) {
         // console.log("welcome to the dark side.")
-        defaultDark.createInstance()
+        switch (pluginMessage.imageVariant) {
+            case "single img":
+                selectedVariant = postComponentSet.findOne(
+                    node => node.type == "COMPONENT" && node.name == "Image=single, Dark mode=true"
+                ) as ComponentNode
+                break
+            case "carousel":
+                selectedVariant = postComponentSet.findOne(
+                    node => node.type == "COMPONENT" && node.name == "Image=carousel, Dark mode=true"
+                ) as ComponentNode
+                break
+            default:
+                selectedVariant = postComponentSet.findOne(
+                    node => node.type == "COMPONENT" && node.name == "Image=none, Dark mode=true"
+                ) as ComponentNode
+                break
+        }
     } else {
         // console.log("I'm Mr.LightSide")
-        defaultVariant.createInstance()
+        switch (pluginMessage.imageVariant) {
+            case "single img":
+                selectedVariant = postComponentSet.findOne(
+                    node => node.type == "COMPONENT" && node.name == "Image=single, Dark mode=false"
+                ) as ComponentNode
+                break
+            case "carousel":
+                selectedVariant = postComponentSet.findOne(
+                    node => node.type == "COMPONENT" && node.name == "Image=carousel, Dark mode=false"
+                ) as ComponentNode
+                break
+            default:
+                selectedVariant = postComponentSet.defaultVariant as ComponentNode
+                break
+        }
     }
+
+    selectedVariant.createInstance()
 
     // figma.closePlugin()
 }
