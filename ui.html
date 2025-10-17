@@ -1,63 +1,87 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/thomas-lowry/figma-plugin-ds/dist/figma-plugin-ds.css">
 
 <style>
-  body {
-    padding: 2em
+  #plugin-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #fff; /* 或者您想要的背景色 */
   }
-  div {
-    margin: 1em
+  #selectedImageContainer {
+    width: 100%; /* 或者您想要的宽度 */
+    height: 200px; /* 或者您想要的高度 */
+    margin: 0px auto; /* 居中显示 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    background-color: #ffffff; /* 可选的背景色 */
+    /* border: 1px solid #ccc; 可选的边框 */
   }
-  input {
-    display: block
+  #selectedImageContainer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+      linear-gradient(45deg, #ccc 25%, transparent 25%),
+      linear-gradient(-45deg, #ccc 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #ccc 75%),
+      linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 20px 20px; /* 调整此值可以改变棋盘格的大小 */
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    z-index: 0; /* 确保背景在图片下面 */
   }
+  #selectedImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* 保持图片比例 */
+    position: relative;
+    z-index: 1;
+  }
+  #submitBtn {
+    font-size: 14px;
+    justify-content: center;
+    left: 16;
+    right: 16;
+    bottom: 16;
+    position: fixed;
+    cursor: pointer;
+  } 
 </style>
 
-<h1>Pichunter</h1>
 
-<!-- textfield -->
-<div>
-  <label for="name">name</label>
-  <input class="input__field" type="text" placeholder="Your Pichunter display name" id="name">
-  
-  <label for="username">username</label>
-  <input class="input__field" type="text" placeholder="Your Pichunter username" id="username">
 
-  <label for="description">description</label>
-  <input class="textarea" type="textarea" rows="2" placeholder="Your post goes here" id="description">
+<div id="plugin-container">
+  <div id="selectedImageContainer">
+    <img id="selectedImage" alt="Selected Image">
+  </div>
+  <button class="button button--primary" id="submitBtn">Search</button>
 </div>
 
-<!-- switch -->
-<div class="switch">
-  <input class="switch__toggle" type="checkbox" id="dark-mode-on">
-  <label class="switch__label" for="dark-mode-on">Dark Mode</label>
-</div>
 
-<!-- radio -->
-<div class="radio">
-  <input id="radioButton1" type="radio" class="radio__button" name="radioGroup" value="no img">
-  <label for="radioButton1" class="radio__label">No Image</label>
-
-  <input id="radioButton2" type="radio" class="radio__button" name="radioGroup" value="single img">
-  <label for="radioButton2" class="radio__label">Single Image</label>
-
-  <input id="radioButton3" type="radio" class="radio__button" name="radioGroup" value="carousel">
-  <label for="radioButton3" class="radio__label">Carousel</label>
-</div>
-
-<!-- submit -->
-<div>
-  <button class="button button--primary" id="submit-post">Submit</button>
-</div>
 
 <!-- event -->
 <script>
-  document.getElementById('submit-post').onclick = () => {
-    const name = document.getElementById('name').value
-    const username = document.getElementById('username').value
-    const description = document.getElementById('description').value
-    const darkModeState = document.getElementById('dark-mode-on').checked
-    const imageVariant = document.querySelector('input[name="radioGroup"]:checked').value
+  onmessage = (event) => {
+    let msg = event.data.pluginMessage
 
-    parent.postMessage({pluginMessage: {name, username, description, darkModeState, imageVariant}}, '*')
+    if (msg.type === 'exportImage') {
+      let imageData = msg.data
+      console.log("got this from the plugin code", imageData)
+      let base64img = `data:image/png;base64,` + btoa(String.fromCharCode.apply(null,imageData))
+
+      const selectedImage = document.getElementById('selectedImage')
+      selectedImage.src = base64img //`url(${base64img})`
+    }
+
+    selectedImage.onload = () => {
+      console.log("Image loaded successfully")
+    }
   }
 </script>

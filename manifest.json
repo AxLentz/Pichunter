@@ -1,5 +1,5 @@
 {
-  "name": "my-first-plugin",
+  "name": "Pichunter",
   "id": "1405218230342044736",
   "api": "1.0.0",
   "main": "code.js",
@@ -13,7 +13,8 @@
   "networkAccess": {
     "allowedDomains": [
       "https://cdn.jsdelivr.net/gh/thomas-lowry/figma-plugin-ds/dist/",
-      "https://rsms.me/"
+      "https://rsms.me/",
+      "https://images.figma.com"
     ]
   }
 }
