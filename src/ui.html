@@ -1,0 +1,110 @@
+<!-- 引入 Figma Plugin Design System 样式库 -->
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/thomas-lowry/figma-plugin-ds/dist/figma-plugin-ds.css"
+/>
+
+<!-- 自定义样式 -->
+<style>
+  /* 插件主容器：全屏布局，垂直排列 */
+  #plugin-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #fff; /* 或者您想要的背景色 */
+  }
+  /* 图像显示容器：固定高度，居中显示，带透明背景 */
+  #selectedImageContainer {
+    width: 100%; /* 或者您想要的宽度 */
+    height: 200px; /* 或者您想要的高度 */
+    margin: 0px auto; /* 居中显示 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    background-color: #ffffff; /* 可选的背景色 */
+    /* border: 1px solid #ccc; 可选的边框 */
+  }
+  /* 透明背景棋盘格：模拟 Photoshop 的透明背景效果 */
+  #selectedImageContainer::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
+      linear-gradient(-45deg, #ccc 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #ccc 75%),
+      linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 20px 20px; /* 调整此值可以改变棋盘格的大小 */
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    z-index: 0; /* 确保背景在图片下面 */
+  }
+  /* 图像元素：自适应大小，保持比例，显示在棋盘格之上 */
+  #selectedImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* 保持图片比例 */
+    position: relative;
+    z-index: 1;
+  }
+  /* 搜索按钮：固定在底部，全宽显示 */
+  #submitBtn {
+    font-size: 14px;
+    justify-content: center;
+    left: 16;
+    right: 16;
+    bottom: 16;
+    position: fixed;
+    cursor: pointer;
+  }
+</style>
+
+<!-- 插件界面结构 -->
+<div id="plugin-container">
+  <!-- 图像显示区域 -->
+  <div id="selectedImageContainer">
+    <img id="selectedImage" alt="Selected Image" />
+  </div>
+  <!-- 搜索按钮 -->
+  <button class="button button--primary" id="submitBtn">Search</button>
+</div>
+
+<!-- 事件处理脚本：接收主线程消息并更新界面 -->
+<script>
+  const submitBtn = document.getElementById("submitBtn");
+  if (submitBtn) {
+    submitBtn.addEventListener("click", () => {
+      parent.postMessage({ pluginMessage: { type: "submit" } }, "*");
+    });
+  }
+
+  // 监听来自主线程的消息
+  onmessage = (event) => {
+    let msg = event.data.pluginMessage;
+
+    // 处理图像导出消息
+    if (msg.type === "exportImage") {
+      let imageData = msg.data;
+      console.log("got this from the plugin code", imageData);
+
+      // 将字节数组转换为 Base64 图像数据
+      let base64img =
+        `data:image/png;base64,` +
+        btoa(String.fromCharCode.apply(null, imageData));
+
+      // 更新界面中的图像显示
+      const selectedImage = document.getElementById("selectedImage");
+      selectedImage.src = base64img; //`url(${base64img})`
+    }
+
+    // 图像加载完成回调
+    selectedImage.onload = () => {
+      console.log("Image loaded successfully");
+    };
+  };
+</script>
