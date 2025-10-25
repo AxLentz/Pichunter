@@ -1,110 +1,161 @@
-<!-- 引入 Figma Plugin Design System 样式库 -->
-<link
-  rel="stylesheet"
-  href="https://cdn.jsdelivr.net/gh/thomas-lowry/figma-plugin-ds/dist/figma-plugin-ds.css"
-/>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pichunter Plugin</title>
+  
+  <!-- 外部样式库 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/thomas-lowry/figma-plugin-ds/dist/figma-plugin-ds.css">
+  
+  <!-- 内部样式 -->
+  <style>
+    /* 主容器 */
+    .plugin-container {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #fff;
+    }
+    
+    /* 图像显示区域 */
+    .image-container {
+      width: 100%;
+      height: 200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      background-color: #ffffff;
+    }
+    
+    /* 透明背景棋盘格效果 */
+    .image-container::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        linear-gradient(45deg, #ccc 25%, transparent 25%),
+        linear-gradient(-45deg, #ccc 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #ccc 75%),
+        linear-gradient(-45deg, transparent 75%, #ccc 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      z-index: 0;
+    }
+    
+    /* 图像元素 */
+    .preview-image {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      position: relative;
+      z-index: 1;
+    }
+    
+    /* 搜索按钮 */
+    .search-button {
+      font-size: 14px;
+      justify-content: center;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      position: fixed;
+      cursor: pointer;
+    }
+  </style>
+</head>
 
-<!-- 自定义样式 -->
-<style>
-  /* 插件主容器：全屏布局，垂直排列 */
-  #plugin-container {
-    width: 100%;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background-color: #fff; /* 或者您想要的背景色 */
-  }
-  /* 图像显示容器：固定高度，居中显示，带透明背景 */
-  #selectedImageContainer {
-    width: 100%; /* 或者您想要的宽度 */
-    height: 200px; /* 或者您想要的高度 */
-    margin: 0px auto; /* 居中显示 */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
-    background-color: #ffffff; /* 可选的背景色 */
-    /* border: 1px solid #ccc; 可选的边框 */
-  }
-  /* 透明背景棋盘格：模拟 Photoshop 的透明背景效果 */
-  #selectedImageContainer::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
-      linear-gradient(-45deg, #ccc 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, #ccc 75%),
-      linear-gradient(-45deg, transparent 75%, #ccc 75%);
-    background-size: 20px 20px; /* 调整此值可以改变棋盘格的大小 */
-    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-    z-index: 0; /* 确保背景在图片下面 */
-  }
-  /* 图像元素：自适应大小，保持比例，显示在棋盘格之上 */
-  #selectedImage {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain; /* 保持图片比例 */
-    position: relative;
-    z-index: 1;
-  }
-  /* 搜索按钮：固定在底部，全宽显示 */
-  #submitBtn {
-    font-size: 14px;
-    justify-content: center;
-    left: 16;
-    right: 16;
-    bottom: 16;
-    position: fixed;
-    cursor: pointer;
-  }
-</style>
+<body>
+  <!-- 插件主界面 -->
+  <main class="plugin-container">
+    <!-- 图像预览区域 -->
+    <section class="image-container">
+      <img class="preview-image" alt="Selected node preview" />
+    </section>
+    
+    <!-- 操作按钮区域 -->
+    <section class="actions">
+      <button class="button button--primary search-button" type="button">
+        Search
+      </button>
+    </section>
+  </main>
 
-<!-- 插件界面结构 -->
-<div id="plugin-container">
-  <!-- 图像显示区域 -->
-  <div id="selectedImageContainer">
-    <img id="selectedImage" alt="Selected Image" />
-  </div>
-  <!-- 搜索按钮 -->
-  <button class="button button--primary" id="submitBtn">Search</button>
-</div>
-
-<!-- 事件处理脚本：接收主线程消息并更新界面 -->
-<script>
-  const submitBtn = document.getElementById("submitBtn");
-  if (submitBtn) {
-    submitBtn.addEventListener("click", () => {
-      parent.postMessage({ pluginMessage: { type: "submit" } }, "*");
-    });
-  }
-
-  // 监听来自主线程的消息
-  onmessage = (event) => {
-    let msg = event.data.pluginMessage;
-
-    // 处理图像导出消息
-    if (msg.type === "exportImage") {
-      let imageData = msg.data;
-      console.log("got this from the plugin code", imageData);
-
-      // 将字节数组转换为 Base64 图像数据
-      let base64img =
-        `data:image/png;base64,` +
-        btoa(String.fromCharCode.apply(null, imageData));
-
-      // 更新界面中的图像显示
-      const selectedImage = document.getElementById("selectedImage");
-      selectedImage.src = base64img; //`url(${base64img})`
+  <!-- 交互逻辑 -->
+  <script>
+    // DOM 元素引用
+    const searchButton = document.querySelector('.search-button');
+    const previewImage = document.querySelector('.preview-image');
+    
+    // 搜索按钮点击事件
+    if (searchButton) {
+      searchButton.addEventListener('click', () => {
+        parent.postMessage({ pluginMessage: { type: 'submit' } }, '*');
+      });
     }
 
-    // 图像加载完成回调
-    selectedImage.onload = () => {
-      console.log("Image loaded successfully");
+    // 处理来自主线程的消息
+    window.onmessage = (event) => {
+      const message = event.data.pluginMessage;
+      
+      switch (message.type) {
+        case 'exportImage':
+          displayImage(message.data);
+          break;
+        case 'clearImage':
+          clearImage();
+          break;
+        case 'exportError':
+          handleError(message.error);
+          break;
+      }
     };
-  };
-</script>
+
+    // 显示图像
+    function displayImage(imageData) {
+      const binaryString = convertToBinaryString(imageData);
+      const base64Image = `data:image/png;base64,${btoa(binaryString)}`;
+      
+      previewImage.src = base64Image;
+      previewImage.style.display = 'block';
+      
+      previewImage.onload = () => {
+        console.log('Image loaded successfully');
+      };
+    }
+
+    // 清空图像
+    function clearImage() {
+      previewImage.src = '';
+      previewImage.style.display = 'none';
+    }
+
+    // 处理错误
+    function handleError(error) {
+      clearImage();
+      console.error('Export error:', error);
+    }
+
+    // 转换为二进制字符串（分块处理避免栈溢出）
+    function convertToBinaryString(imageData) {
+      let binaryString = '';
+      const chunkSize = 8192;
+      
+      for (let i = 0; i < imageData.length; i += chunkSize) {
+        const chunk = imageData.slice(i, i + chunkSize);
+        binaryString += String.fromCharCode.apply(null, chunk);
+      }
+      
+      return binaryString;
+    }
+  </script>
+</body>
+</html>
