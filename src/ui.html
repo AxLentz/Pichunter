@@ -8,32 +8,35 @@
   <!-- 外部样式库 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/thomas-lowry/figma-plugin-ds/dist/figma-plugin-ds.css">
   
-  <!-- 内部样式 -->
   <style>
-    /* 主容器 */
-    .plugin-container {
-      width: 100%;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    body {
+      margin: 0;
       background-color: #fff;
     }
-    
-    /* 图像显示区域 */
+
+    .plugin-container {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 16px;
+      padding: 0 0 120px;
+      background-color: #fff;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+
     .image-container {
       width: 100%;
-      height: 200px;
-      margin: 0 auto;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      margin: 0;
       position: relative;
-      overflow: hidden;
       background-color: #ffffff;
+      aspect-ratio: 16 / 9;
+      border-radius: 0;
+      overflow: hidden;
     }
-    
-    /* 透明背景棋盘格效果 */
+
     .image-container::before {
       content: "";
       position: absolute;
@@ -41,7 +44,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-image: 
+      background-image:
         linear-gradient(45deg, #ccc 25%, transparent 25%),
         linear-gradient(-45deg, #ccc 25%, transparent 25%),
         linear-gradient(45deg, transparent 75%, #ccc 75%),
@@ -50,17 +53,15 @@
       background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
       z-index: 0;
     }
-    
-    /* 图像元素 */
+
     .preview-image {
-      max-width: 100%;
-      max-height: 100%;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
       position: relative;
       z-index: 1;
     }
-    
-    /* 搜索按钮 */
+
     .search-button {
       font-size: 14px;
       justify-content: center;
@@ -69,6 +70,143 @@
       bottom: 16px;
       position: fixed;
       cursor: pointer;
+      z-index: 20;
+    }
+
+    .actions {
+      padding: 0 16px;
+    }
+
+    .results-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 0 16px;
+      box-sizing: border-box;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .results-status {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background-color: #f3f4f6;
+      color: #4b5563;
+    }
+
+    .results-status.status--processing {
+      background-color: rgba(24, 160, 251, 0.15);
+      color: #0b74da;
+    }
+
+    .results-status.status--success {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #059669;
+    }
+
+    .results-status.status--error {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #dc2626;
+    }
+
+    .results-summary {
+      margin: 0;
+      font-size: 12px;
+      color: #4b5563;
+    }
+
+    .results-empty {
+      font-size: 12px;
+      color: #6b7280;
+      background-color: #f9fafb;
+      border: 1px dashed #d1d5db;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .component-list {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      padding-bottom: 72px;
+    }
+
+    .component-list.is-visible {
+      display: flex;
+    }
+
+    .component-item {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px;
+      background-color: #ffffff;
+      display: flex;
+      gap: 16px;
+      align-items: stretch;
+      min-height: 120px;
+    }
+
+    .component-item__thumbnail {
+      flex: 0 0 160px;
+      border-radius: 8px;
+      background-color: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .component-item__thumbnail-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .component-item__thumbnail-placeholder {
+      font-size: 12px;
+      color: #9ca3af;
+      text-align: center;
+      padding: 0 8px;
+      line-height: 1.4;
+      white-space: pre-line;
+    }
+
+    .component-item__info {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .component-item__label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+      margin: 0;
+    }
+
+    .component-item__confidence {
+      font-size: 12px;
+      color: #2563eb;
+      margin: 0;
     }
   </style>
 </head>
@@ -87,75 +225,522 @@
         Search
       </button>
     </section>
+
+    <!-- 识别结果展示区域 -->
+    <section class="results-section">
+      <div class="results-header">
+        <h2 class="section-title">识别结果</h2>
+        <span class="results-status status--idle">待识别</span>
+      </div>
+      <p class="results-summary">尚未进行识别</p>
+      <div class="results-empty">请选择设计元素并点击 “Search” 开始识别。</div>
+      <ul class="component-list"></ul>
+    </section>
   </main>
 
-  <!-- 交互逻辑 -->
   <script>
-    // DOM 元素引用
-    const searchButton = document.querySelector('.search-button');
-    const previewImage = document.querySelector('.preview-image');
-    
-    // 搜索按钮点击事件
-    if (searchButton) {
-      searchButton.addEventListener('click', () => {
-        parent.postMessage({ pluginMessage: { type: 'submit' } }, '*');
-      });
+    // ============ Utils ============
+    // 限制数值在指定范围内
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(value, max));
     }
 
-    // 处理来自主线程的消息
-    window.onmessage = (event) => {
-      const message = event.data.pluginMessage;
-      
-      switch (message.type) {
-        case 'exportImage':
-          displayImage(message.data);
-          break;
-        case 'clearImage':
-          clearImage();
-          break;
-        case 'exportError':
-          handleError(message.error);
-          break;
-      }
-    };
-
-    // 显示图像
-    function displayImage(imageData) {
-      const binaryString = convertToBinaryString(imageData);
-      const base64Image = `data:image/png;base64,${btoa(binaryString)}`;
-      
-      previewImage.src = base64Image;
-      previewImage.style.display = 'block';
-      
-      previewImage.onload = () => {
-        console.log('Image loaded successfully');
-      };
-    }
-
-    // 清空图像
-    function clearImage() {
-      previewImage.src = '';
-      previewImage.style.display = 'none';
-    }
-
-    // 处理错误
-    function handleError(error) {
-      clearImage();
-      console.error('Export error:', error);
-    }
-
-    // 转换为二进制字符串（分块处理避免栈溢出）
+    // 将图像数据转换为二进制字符串（用于 base64 编码）
     function convertToBinaryString(imageData) {
       let binaryString = '';
       const chunkSize = 8192;
-      
+
       for (let i = 0; i < imageData.length; i += chunkSize) {
         const chunk = imageData.slice(i, i + chunkSize);
         binaryString += String.fromCharCode.apply(null, chunk);
       }
-      
+
       return binaryString;
     }
+
+    // 格式化置信度为百分比字符串
+    function formatConfidence(confidence) {
+      if (typeof confidence !== 'number' || Number.isNaN(confidence)) {
+        return 'N/A';
+      }
+      const value = clamp(Math.round(confidence * 100), 0, 100);
+      return `${value}%`;
+    }
+
+    // 将各种格式的数据统一转换为 Uint8Array
+    function toUint8Array(source) {
+      if (!source) {
+        return new Uint8Array();
+      }
+
+      if (source instanceof Uint8Array) {
+        return source;
+      }
+
+      if (ArrayBuffer.isView(source)) {
+        return new Uint8Array(source.buffer);
+      }
+
+      if (Array.isArray(source)) {
+        return Uint8Array.from(source);
+      }
+
+      if (typeof source === 'object') {
+        if (Array.isArray(source.data)) {
+          return Uint8Array.from(source.data);
+        }
+        if (typeof source.length === 'number') {
+          const values = [];
+          for (let i = 0; i < source.length; i++) {
+            values.push(source[i]);
+          }
+          return Uint8Array.from(values);
+        }
+      }
+
+      throw new Error('Unsupported image data format');
+    }
+
+    // ============ PreviewPanel ============
+    const previewPanel = {
+      previewImage: null,
+
+      // 绑定 DOM 元素引用
+      bindElements() {
+        this.previewImage = document.querySelector('.preview-image');
+      },
+
+      // 确保图片 DOM 引用已初始化
+      ensureImageRef() {
+        if (!this.previewImage) {
+          this.bindElements();
+        }
+        return Boolean(this.previewImage);
+      },
+
+      // 显示预览图片
+      displayImage(imageData) {
+        if (!this.ensureImageRef()) {
+          return;
+        }
+
+        const imageBytes = toUint8Array(imageData);
+        if (!imageBytes.length) {
+          this.clearImage();
+          return;
+        }
+
+        const binaryString = convertToBinaryString(imageBytes);
+        const base64Image = `data:image/png;base64,${btoa(binaryString)}`;
+
+        this.previewImage.src = base64Image;
+        this.previewImage.style.display = 'block';
+
+        this.previewImage.onload = () => {
+          console.log('Image loaded successfully');
+        };
+      },
+
+      // 清空预览图片
+      clearImage() {
+        if (!this.ensureImageRef()) {
+          return;
+        }
+        this.previewImage.src = '';
+        this.previewImage.style.display = 'none';
+      },
+
+      // 检查图片是否已加载完成
+      isReady() {
+        if (!this.ensureImageRef()) {
+          return false;
+        }
+        return Boolean(
+          this.previewImage &&
+          this.previewImage.complete &&
+          this.previewImage.naturalWidth > 0 &&
+          this.previewImage.naturalHeight > 0
+        );
+      },
+
+      // 检查是否有可用的预览图片
+      hasActiveImage() {
+        if (!this.ensureImageRef()) {
+          return false;
+        }
+        return Boolean(this.previewImage.src) && this.previewImage.style.display !== 'none';
+      }
+    };
+
+    // ============ ResultsPanel ============
+    const resultsPanel = {
+      resultsStatus: null,
+      resultsSummary: null,
+      resultsEmpty: null,
+      componentList: null,
+
+      // 绑定 DOM 元素引用
+      bindElements() {
+        this.resultsStatus = document.querySelector('.results-status');
+        this.resultsSummary = document.querySelector('.results-summary');
+        this.resultsEmpty = document.querySelector('.results-empty');
+        this.componentList = document.querySelector('.component-list');
+      },
+
+      // 初始化面板状态
+      initializeState() {
+        this.bindElements();
+        this.updateStatus('idle');
+        this.setSummary('尚未进行识别');
+        this.showMessage('请选择设计元素并点击 "Search" 开始识别。');
+      },
+
+      // 更新识别状态显示（idle/processing/success/error）
+      updateStatus(state, progress) {
+        if (!this.resultsStatus) return;
+
+        this.resultsStatus.classList.remove(
+          'status--idle',
+          'status--processing',
+          'status--success',
+          'status--error'
+        );
+
+        switch (state) {
+          case 'processing':
+            this.resultsStatus.classList.add('status--processing');
+            this.resultsStatus.textContent = progress !== undefined
+              ? `识别中 ${Math.max(0, Math.min(progress, 100))}%`
+              : '识别中';
+            break;
+          case 'success':
+            this.resultsStatus.classList.add('status--success');
+            this.resultsStatus.textContent = '识别完成';
+            break;
+          case 'error':
+            this.resultsStatus.classList.add('status--error');
+            this.resultsStatus.textContent = '识别失败';
+            break;
+          default:
+            this.resultsStatus.classList.add('status--idle');
+            this.resultsStatus.textContent = '待识别';
+        }
+      },
+
+      // 设置结果摘要文本
+      setSummary(text) {
+        if (!this.resultsSummary) return;
+        this.resultsSummary.textContent = text;
+      },
+
+      // 显示提示消息（隐藏组件列表）
+      showMessage(message) {
+        if (this.componentList) {
+          this.componentList.classList.remove('is-visible');
+          this.componentList.innerHTML = '';
+        }
+        if (this.resultsEmpty) {
+          this.resultsEmpty.textContent = message;
+          this.resultsEmpty.style.display = 'block';
+        }
+      },
+
+      // 显示组件列表（隐藏提示消息）
+      showComponentList() {
+        if (this.componentList) {
+          this.componentList.classList.add('is-visible');
+        }
+        if (this.resultsEmpty) {
+          this.resultsEmpty.style.display = 'none';
+        }
+      },
+
+      // 渲染识别结果
+      render(result) {
+        if (!result || !Array.isArray(result.components) || result.components.length === 0) {
+          this.updateStatus('success');
+          this.setSummary('没有识别到组件');
+          this.showMessage('没有识别到组件，请尝试调整选择或使用更清晰的图像。');
+          return;
+        }
+
+        this.updateStatus('success');
+        const total = typeof result.totalComponents === 'number'
+          ? result.totalComponents
+          : result.components.length;
+        const processingTime = typeof result.processingTime === 'number'
+          ? Math.round(result.processingTime)
+          : '—';
+        this.setSummary(`共识别 ${total} 个组件 · 处理时间 ${processingTime} ms`);
+        if (!this.componentList) return;
+
+        this.componentList.innerHTML = '';
+        result.components.forEach((component, index) => {
+          this.componentList.appendChild(this.createComponentItem(component, index, result.imageInfo));
+        });
+
+        this.showComponentList();
+      },
+
+      // 创建单个组件列表项
+      createComponentItem(component, index, imageInfo) {
+        const item = document.createElement('li');
+        item.className = 'component-item';
+
+        const thumbnail = document.createElement('div');
+        thumbnail.className = 'component-item__thumbnail';
+        this.setComponentThumbnail(thumbnail, component, imageInfo);
+        item.appendChild(thumbnail);
+
+        const info = document.createElement('div');
+        info.className = 'component-item__info';
+
+        const label = document.createElement('p');
+        label.className = 'component-item__label';
+        const labelText = component?.label || component?.type || '未知组件';
+        label.textContent = `${index + 1}. ${labelText}`;
+
+        const confidence = document.createElement('p');
+        confidence.className = 'component-item__confidence';
+        confidence.textContent = `置信度 ${formatConfidence(component?.confidence)}`;
+
+        info.appendChild(label);
+        info.appendChild(confidence);
+
+        item.appendChild(info);
+
+        return item;
+      },
+
+      // 设置组件缩略图
+      setComponentThumbnail(container, component, imageInfo) {
+        const thumbnailData = this.getComponentThumbnailDataURL(component, imageInfo);
+        if (thumbnailData) {
+          const img = document.createElement('img');
+          img.className = 'component-item__thumbnail-image';
+          img.src = thumbnailData;
+          container.appendChild(img);
+        } else {
+          const placeholder = document.createElement('span');
+          placeholder.className = 'component-item__thumbnail-placeholder';
+          placeholder.textContent = '暂无\n缩略图';
+          container.appendChild(placeholder);
+        }
+      },
+
+      // 从预览图中裁切组件缩略图并返回 Data URL
+      getComponentThumbnailDataURL(component, imageInfo) {
+        if (!component?.boundingBox || !previewPanel.isReady()) {
+          return null;
+        }
+
+        const { boundingBox } = component;
+        const previewImage = previewPanel.previewImage;
+        if (!previewImage) {
+          return null;
+        }
+
+        const naturalWidth = previewImage.naturalWidth;
+        const naturalHeight = previewImage.naturalHeight;
+
+        if (!naturalWidth || !naturalHeight) {
+          return null;
+        }
+
+        const baseWidth = imageInfo?.width || naturalWidth;
+        const baseHeight = imageInfo?.height || naturalHeight;
+
+        if (!baseWidth || !baseHeight) {
+          return null;
+        }
+
+        const scaleX = naturalWidth / baseWidth;
+        const scaleY = naturalHeight / baseHeight;
+
+        const sourceX = clamp(Math.round(boundingBox.x * scaleX), 0, naturalWidth);
+        const sourceY = clamp(Math.round(boundingBox.y * scaleY), 0, naturalHeight);
+        const maxWidth = naturalWidth - sourceX;
+        const maxHeight = naturalHeight - sourceY;
+        const sourceWidth = clamp(Math.round(boundingBox.width * scaleX), 1, maxWidth);
+        const sourceHeight = clamp(Math.round(boundingBox.height * scaleY), 1, maxHeight);
+
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+          return null;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = sourceWidth;
+        canvas.height = sourceHeight;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          return null;
+        }
+
+        try {
+          context.drawImage(
+            previewImage,
+            sourceX,
+            sourceY,
+            sourceWidth,
+            sourceHeight,
+            0,
+            0,
+            sourceWidth,
+            sourceHeight
+          );
+          return canvas.toDataURL('image/png');
+        } catch (error) {
+          console.error('生成组件缩略图失败:', error);
+          return null;
+        }
+      }
+    };
+
+    // ============ SearchController ============
+    let searchButton = null;
+
+    // 初始化搜索按钮事件监听
+    function initSearchController() {
+      searchButton = document.querySelector('.search-button');
+      if (!searchButton) {
+        return;
+      }
+
+      searchButton.addEventListener('click', handleSearchClick);
+    }
+
+    // 处理搜索按钮点击事件
+    function handleSearchClick() {
+      if (!previewPanel.hasActiveImage()) {
+        alert('请先选择一个设计元素');
+        return;
+      }
+
+      triggerRecognition();
+    }
+
+    // 触发组件识别请求
+    function triggerRecognition() {
+      const mockImageData = new Uint8Array([1, 2, 3]);
+
+      parent.postMessage({
+        pluginMessage: {
+          type: 'recognize',
+          data: mockImageData
+        }
+      }, '*');
+
+      updateSearchButtonState('processing');
+      resultsPanel.updateStatus('processing');
+      resultsPanel.showMessage('正在识别组件，请稍候...');
+    }
+
+    // 更新搜索按钮状态和文本
+    function updateSearchButtonState(state, progress) {
+      if (!searchButton) {
+        return;
+      }
+
+      switch (state) {
+        case 'processing':
+          searchButton.textContent = progress ? `识别中... ${Math.round(progress)}%` : '识别中...';
+          searchButton.disabled = true;
+          break;
+        case 'success':
+          searchButton.textContent = '识别完成';
+          searchButton.disabled = false;
+          setTimeout(() => {
+            if (searchButton) {
+              searchButton.textContent = 'Search';
+            }
+          }, 2000);
+          break;
+        case 'error':
+          searchButton.textContent = '识别失败';
+          searchButton.disabled = false;
+          setTimeout(() => {
+            if (searchButton) {
+              searchButton.textContent = 'Search';
+            }
+          }, 2000);
+          break;
+        default:
+          searchButton.textContent = 'Search';
+          searchButton.disabled = false;
+      }
+    }
+
+    // ============ Message Handlers ============
+    // 处理识别进度消息
+    function handleRecognitionProgress(data) {
+      console.log('识别进度:', data);
+      updateSearchButtonState('processing', data.progress);
+      const progressValue = typeof data?.progress === 'number' ? Math.round(data.progress) : undefined;
+      resultsPanel.updateStatus('processing', progressValue);
+      const summaryText = progressValue !== undefined
+        ? `识别中... ${Math.max(0, Math.min(progressValue, 100))}%`
+        : '识别中...';
+      resultsPanel.setSummary(summaryText);
+      resultsPanel.showMessage('正在识别组件，请稍候...');
+    }
+
+    // 处理识别结果消息
+    function handleRecognitionResult(result) {
+      console.log('识别结果:', result);
+      updateSearchButtonState('success');
+      resultsPanel.render(result);
+    }
+
+    // 处理识别错误消息
+    function handleRecognitionError(error) {
+      console.error('识别错误:', error);
+      updateSearchButtonState('error');
+      resultsPanel.updateStatus('error');
+      resultsPanel.setSummary('识别失败');
+      resultsPanel.showMessage(`识别失败：${error}`);
+    }
+
+    // 处理导出错误消息
+    function handleExportError(error) {
+      previewPanel.clearImage();
+      console.error('Export error:', error);
+    }
+
+    // 设置主线程消息监听器
+    function setupMessageHandlers() {
+      window.onmessage = (event) => {
+        const message = event.data.pluginMessage;
+        if (!message) return;
+
+        switch (message.type) {
+          case 'exportImage':
+            previewPanel.displayImage(message.data);
+            break;
+          case 'clearImage':
+            previewPanel.clearImage();
+            break;
+          case 'exportError':
+            handleExportError(message.error);
+            break;
+          case 'recognitionProgress':
+            handleRecognitionProgress(message.data);
+            break;
+          case 'recognitionResult':
+            handleRecognitionResult(message.data);
+            break;
+          case 'recognitionError':
+            handleRecognitionError(message.error);
+            break;
+        }
+      };
+    }
+
+    // ============ Initialization ============
+    previewPanel.bindElements();
+    previewPanel.clearImage();
+    resultsPanel.initializeState();
+    initSearchController();
+    setupMessageHandlers();
   </script>
 </body>
 </html>
