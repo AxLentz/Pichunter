@@ -16,7 +16,7 @@
 技术栈（初定）：
 
 - 插件前端：React + TypeScript + Figma Plugin UI 库（https://github.com/thomas-lowry/figma-plugin-ds）  
-- 后端：Node.js + Express  
+- 后端：Python + FastAPI（或同等异步框架）  
 - AI 调用：OpenAI / 微软 Florence / 其他视觉 / 多模态模型  
 - 部署：初期本地 + ngrok，后期可部署到云端（Vercel / Render / AWS / Azure）  
 - 版本控制：Git / GitHub  
@@ -27,14 +27,16 @@
 
 # 安装依赖
 cd backend
-npm install
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 
 cd frontend
 npm install
 
-# 启动后端（例如在 3000 端口）
+# 启动后端（例如在 8000 端口）
 cd backend
-npm run dev
+uvicorn app.main:app --reload --port 8000
 
 # 启动插件前端（用于开发 UI），watch 模式
 cd frontend

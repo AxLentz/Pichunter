@@ -1,6 +1,6 @@
 import { ImageInfo, RecognitionResult } from "./types";
 import { simulateRecognition } from "./mockData";
-import { initializeSelectionExport } from "./plugin/selectionExport";
+import { initializeSelectionExport } from "./selectionExport";
 
 // ============ 初始化 ============
 figma.showUI(__html__);

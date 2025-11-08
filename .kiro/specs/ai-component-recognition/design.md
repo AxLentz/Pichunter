@@ -31,10 +31,10 @@ AI 组件识别功能是一个端到端的系统，包含 Figma 插件前端、�
 - HTML/CSS (Figma Plugin DS)
 
 **后端 (API Server):**
-- Node.js + Express
-- Multer (文件上传)
-- Sharp (图像处理)
-- Axios (HTTP 客户端)
+- Python + FastAPI
+- python-multipart / Starlette UploadFile (文件上传)
+- Pillow / pyvips (图像处理)
+- httpx (HTTP 客户端)
 
 **AI 服务:**
 - OpenAI GPT-4 Vision API
@@ -96,7 +96,7 @@ interface ComponentResult {
 
 ### 2. 后端 API 组件
 
-#### 2.1 Express 服务器
+#### 2.1 FastAPI 服务器
 ```typescript
 interface APIResponse<T> {
   success: boolean;
