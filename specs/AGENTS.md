@@ -83,6 +83,67 @@ interface RecognitionResult {
 *   **Python**: PEP8, Type hints (Pydantic models).
 *   **General**: Modular design (UI vs Logic vs API).
 
+### Python Code Standards
+
+#### File Organization (All Python Files)
+1.  **Imports** (grouped and ordered):
+    *   Standard library
+    *   Third-party libraries
+    *   Local modules
+2.  **Module-level constants** (UPPER_CASE)
+3.  **Class definitions** (ordered by dependency)
+4.  **Function definitions**
+
+#### schemas.py Structure
+**Class order (bottom-up dependency):**
+1.  Base classes (`ErrorDetail`, `HealthResponse`)
+2.  Atomic models (`BoundingBox`, `ImageInfo`, `ComponentResult`)
+3.  Aggregate models (`RecognitionMetadata`, `RecognitionResult`)
+4.  API wrappers (`RecognitionResponse`)
+
+**Add section comments:**
+```python
+# ============================================
+# 通用基础类
+# ============================================
+```
+
+#### main.py Structure
+**File order:**
+1.  Imports (standard → third-party → local)
+2.  Configuration constants (`MAX_IMAGE_SIZE_BYTES`)
+3.  App initialization (`app = FastAPI(...)` + middleware)
+4.  Route endpoints (grouped by feature)
+
+**Add section comments:**
+```python
+# ============================================
+# 配置常量
+# ============================================
+```
+
+#### Naming Conventions
+*   **Constants**: `UPPER_SNAKE_CASE`
+*   **Classes**: `PascalCase`
+*   **Functions/Variables**: `lower_snake_case`
+*   **Private**: `_leading_underscore`
+
+#### String Literals
+**Avoid magic strings - extract to constants:**
+```python
+# ❌ Bad: Hard-coded strings
+service="pichunter-backend"
+
+# ✅ Good: Extract to constants
+SERVICE_NAME = "Pichunter Backend"
+service=SERVICE_NAME
+```
+
+**When to extract:**
+*   Reused multiple times
+*   May change in the future
+*   Has business meaning
+
 ### Agent Rules (Interaction Protocol)
 1.  **Context First**: Always check `AGENTS.md` and `specs/tasks.md` before starting.
 2.  **Incremental Changes**: Break large features into: Types -> Backend API -> Frontend Logic -> UI.

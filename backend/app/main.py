@@ -1,11 +1,17 @@
+# ============================================
+# Imports
+# ============================================
+# 标准库
 from datetime import datetime
 from io import BytesIO
 from typing import List
 
+# 第三方库
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 
+# 本地模块
 from .schemas import (
     ComponentResult,
     ErrorDetail,
@@ -17,8 +23,23 @@ from .schemas import (
 )
 
 
+# ============================================
+# 配置常量
+# ============================================
+# 服务信息
+SERVICE_NAME = "Pichunter Backend"
+SERVICE_VERSION = "0.1.0"
+
+# 上传相关的硬性约束：10MB 上限，以及目前支持 PNG / JPEG
+MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB 上限，后续可抽取到配置
+SUPPORTED_CONTENT_TYPES: List[str] = ["image/png", "image/jpeg"]
+
+
+# ============================================
+# 应用初始化
+# ============================================
 # 创建FastAPI应用实例 - 类似Swift创建UIApplication，是后端服务的核心
-app = FastAPI(title="Pichunter Backend", version="0.1.0")
+app = FastAPI(title=SERVICE_NAME, version=SERVICE_VERSION)
 
 
 # 配置跨域中间件 - 类似iOS的App Transport Security设置，允许前端访问后端API
@@ -32,6 +53,10 @@ app.add_middleware(
 )
 
 
+# ============================================
+# 路由端点
+# ============================================
+
 # 定义健康检查接口 - 类似iOS App的ping接口，用于监控服务状态
 # 前端可以通过这个接口判断后端是否正常运行
 @app.get("/api/health", response_model=HealthResponse)
@@ -40,15 +65,12 @@ def health_check() -> HealthResponse:
     return HealthResponse(
         status="ok",
         timestamp=datetime.utcnow(),
-        service="pichunter-backend",
+        service=app.title,  # 使用 app.title 保持一致
     )
 
 
-# 上传相关的硬性约束：10MB 上限，以及目前支持 PNG / JPEG
-MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB 上限，后续可抽取到配置
-SUPPORTED_CONTENT_TYPES: List[str] = ["image/png", "image/jpeg"]
-
-
+# 定义组件识别接口 - 接收图片上传，返回识别出的 UI 组件列表
+# 当前使用简单规则引擎，后续将接入 AI 模型（OpenAI GPT-4 Vision）
 @app.post("/api/recognize", response_model=RecognitionResponse)
 async def recognize_component(file: UploadFile = File(...)) -> RecognitionResponse:
     """Placeholder component recognition endpoint.
