@@ -21,6 +21,7 @@ from .schemas import (
     RecognitionResponse,
     RecognitionResult,
 )
+from .services.ai_service import GeminiService
 
 
 # ============================================
@@ -30,9 +31,9 @@ from .schemas import (
 SERVICE_NAME = "Pichunter Backend"
 SERVICE_VERSION = "0.1.0"
 
-# 上传相关的硬性约束：10MB 上限，以及目前支持 PNG / JPEG
+# 上传相关的硬性约束：10MB 上限，以及目前支持 PNG / JPEG / WebP
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB 上限，后续可抽取到配置
-SUPPORTED_CONTENT_TYPES: List[str] = ["image/png", "image/jpeg"]
+SUPPORTED_CONTENT_TYPES: List[str] = ["image/png", "image/jpeg", "image/webp"]
 
 
 # ============================================
@@ -40,6 +41,9 @@ SUPPORTED_CONTENT_TYPES: List[str] = ["image/png", "image/jpeg"]
 # ============================================
 # 创建FastAPI应用实例 - 类似Swift创建UIApplication，是后端服务的核心
 app = FastAPI(title=SERVICE_NAME, version=SERVICE_VERSION)
+
+# 初始化 AI 服务
+ai_service = GeminiService()
 
 
 # 配置跨域中间件 - 类似iOS的App Transport Security设置，允许前端访问后端API
@@ -84,7 +88,7 @@ async def recognize_component(file: UploadFile = File(...)) -> RecognitionRespon
             status_code=415,
             detail=ErrorDetail(
                 code="unsupported_media_type",
-                message="仅支持 PNG 或 JPEG 图像",
+                message="仅支持 PNG、JPEG 或 WebP 图像",
             ).model_dump(),
         )
 
@@ -122,30 +126,42 @@ async def recognize_component(file: UploadFile = File(...)) -> RecognitionRespon
             ).model_dump(),
         ) from exc
 
-    # TODO: 接入真实识别逻辑。当前返回模拟数据以便前端联调。
-    mock_component = ComponentResult(
-        id="mock-1",
-        type="unknown",
-        label="Mock Component",
-        confidence=0.0,
-        bbox={"x": 0, "y": 0, "width": width, "height": height},
-    )
+    # Step 4: 调用 AI 服务进行识别
+    start_time = datetime.utcnow()
 
-    # Step 4: 组织符合前端预期的数据结构，后续接入真实模型时替换此处内容
-    recognition = RecognitionResult(
-        image_info=ImageInfo(
-            width=width,
-            height=height,
-            format=image_format,
-            size_bytes=len(payload),
-        ),
-        components=[mock_component],
-        metadata=RecognitionMetadata(
-            processing_time_ms=0,
-            model_version="mock",
-            confidence_threshold=0.0,
-        ),
-    )
+    try:
+        # 调用 Gemini AI 服务
+        components = await ai_service.recognize_components(image)
+        
+        # 计算处理时间
+        processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+
+        # 组织返回结果
+        recognition = RecognitionResult(
+            image_info=ImageInfo(
+                width=width,
+                height=height,
+                format=image_format,
+                size_bytes=len(payload),
+            ),
+            components=components,
+            metadata=RecognitionMetadata(
+                processing_time_ms=processing_time,
+                model_version="gemini-2.5-flash",
+                confidence_threshold=0.0,
+            ),
+        )
+
+    except Exception as e:
+        # AI 服务调用失败（如未配置 API Key）
+        print(f"AI 识别失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorDetail(
+                code="ai_service_error",
+                message=f"AI 服务错误: {str(e)}",
+            ).model_dump(),
+        )
 
     # Step 5: 返回统一的响应格式，便于前端和监控消费
     return RecognitionResponse(
