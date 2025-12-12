@@ -85,6 +85,86 @@ interface RecognitionResult {
 
 ### Python Code Standards
 
+#### Type Annotations (类型注解规范)
+**所有代码必须包含类型注解（强制要求）**
+
+**1. 类属性声明：**
+```python
+from typing import Optional, List
+
+class GeminiService:
+    # 必须声明属性类型（类似 Swift）
+    api_key: Optional[str]
+    model: Optional[genai.GenerativeModel]
+    config: dict
+    
+    def __init__(self) -> None:
+        self.api_key = os.environ.get("GEMINI_API_KEY")
+        self.model = None
+```
+
+**2. 函数签名：**
+```python
+# 所有参数和返回值都要类型注解
+def process_image(
+    image: Image.Image,
+    size: int = 100
+) -> bytes:
+    pass
+
+# 异步函数也要注解
+async def recognize_components(
+    self,
+    image: Image.Image
+) -> List[ComponentResult]:
+    pass
+```
+
+**3. 常用类型：**
+```python
+from typing import List, Dict, Optional, Union, Tuple, Any
+
+# 列表
+users: List[User] = []
+
+# 字典
+config: Dict[str, str] = {}
+
+# 可选（可能为 None）
+result: Optional[User] = None
+
+# 联合类型（多种可能）
+data: Union[str, int] = "hello"
+
+# 元组
+coords: Tuple[int, int] = (10, 20)
+
+# 任意类型（尽量避免）
+value: Any = something
+```
+
+**4. 文档字符串：**
+```python
+def recognize_components(
+    self,
+    image: Image.Image
+) -> List[ComponentResult]:
+    """
+    识别图片中的 UI 组件
+    
+    Args:
+        image: PIL Image 对象（已验证）
+        
+    Returns:
+        ComponentResult 列表，包含所有识别出的组件
+        
+    Raises:
+        ValueError: 如果 API Key 未配置
+        Exception: 如果 AI 调用失败
+    """
+    pass
+```
+
 #### File Organization (All Python Files)
 1.  **Imports** (grouped and ordered):
     *   Standard library
