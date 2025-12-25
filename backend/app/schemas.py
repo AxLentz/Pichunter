@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 # 通用基础类（不依赖其他业务类）
 # ============================================
 
+
 # 错误详情类 - 用于返回错误信息
 #
 # Attributes:
@@ -30,6 +31,7 @@ class HealthResponse(BaseModel):
 # ============================================
 # 领域模型 - 原子级别（不依赖其他业务类）
 # ============================================
+
 
 # 边界框类 - 用于描述UI组件在图片中的位置和大小
 class BoundingBox(BaseModel):
@@ -60,11 +62,14 @@ class ComponentResult(BaseModel):
 # 聚合模型 - 组合级别（依赖上面的原子类）
 # ============================================
 
+
 # 识别元数据类 - 描述识别过程的附加信息
 class RecognitionMetadata(BaseModel):
     processing_time_ms: int  # 处理时间（毫秒）
     model_version: str  # 使用的AI模型版本
-    confidence_threshold: float = Field(ge=0.0, le=1.0)  # 置信度阈值，只有置信度高于此值的组件才会被返回
+    confidence_threshold: float = Field(
+        ge=0.0, le=1.0
+    )  # 置信度阈值，只有置信度高于此值的组件才会被返回
 
 
 # 识别结果类 - 包含完整的UI组件识别结果
@@ -77,6 +82,7 @@ class RecognitionResult(BaseModel):
 # ============================================
 # API 响应包装（最高层，依赖所有业务类）
 # ============================================
+
 
 # API响应类 - 用于返回UI组件识别的API响应
 class RecognitionResponse(BaseModel):

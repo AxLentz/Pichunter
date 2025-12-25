@@ -13,7 +13,6 @@ from PIL import Image, UnidentifiedImageError
 
 # 本地模块
 from .schemas import (
-    ComponentResult,
     ErrorDetail,
     HealthResponse,
     ImageInfo,
@@ -22,7 +21,6 @@ from .schemas import (
     RecognitionResult,
 )
 from .services.ai_service import GeminiService
-
 
 # ============================================
 # 配置常量
@@ -60,6 +58,7 @@ app.add_middleware(
 # ============================================
 # 路由端点
 # ============================================
+
 
 # 定义健康检查接口 - 类似iOS App的ping接口，用于监控服务状态
 # 前端可以通过这个接口判断后端是否正常运行
@@ -132,7 +131,7 @@ async def recognize_component(file: UploadFile = File(...)) -> RecognitionRespon
     try:
         # 调用 Gemini AI 服务
         components = await ai_service.recognize_components(image)
-        
+
         # 计算处理时间
         processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
 

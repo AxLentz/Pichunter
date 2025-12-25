@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff 版本（与安装的版本一致）
+    rev: v0.14.8
+    hooks:
+      # Ruff Linter（检查代码问题并自动修复）
+      - id: ruff
+        args: [--fix]
+      # Ruff Formatter（格式化代码）
+      - id: ruff-format
+  
+  # mypy 类型检查
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-pillow

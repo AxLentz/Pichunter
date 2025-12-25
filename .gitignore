@@ -45,7 +45,9 @@ eggs/
 # IDE & Editors
 # ============================================
 # VS Code
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # PyCharm
 .idea/

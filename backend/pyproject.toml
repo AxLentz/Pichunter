@@ -27,3 +27,33 @@ package = false
 # uv 自定义脚本
 # dev: 启动开发服务器，使用 uvicorn 运行 FastAPI 应用，支持热重载，监听 8000 端口
 dev = "uvicorn app.main:app --reload --port 8000"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.0",
+    "pre-commit>=4.5.0",
+    "ruff>=0.14.8",
+]
+
+[tool.mypy]
+# Python 版本
+python_version = "3.11"
+
+# 严格模式：强制要求类型注解
+disallow_untyped_defs = true        # 禁止没有类型注解的函数(最重要的一条)
+disallow_any_unimported = false     # 允许导入的 Any 类型
+disallow_any_expr = false           # 允许 Any 表达式
+disallow_any_decorated = false      # 允许装饰器返回 Any
+disallow_any_explicit = false       # 允许显式的 Any
+disallow_any_generics = false       # 允许泛型中的 Any
+disallow_subclassing_any = true     # 禁止继承 Any
+
+# 警告设置
+warn_return_any = true              # 警告返回 Any
+warn_unused_configs = true          # 警告未使用的配置
+warn_redundant_casts = true         # 警告多余的类型转换
+warn_unused_ignores = true          # 警告未使用的 type: ignore
+
+# 其他设置
+strict_optional = true              # 严格的 Optional 检查
+check_untyped_defs = true           # 检查没有类型注解的函数体
