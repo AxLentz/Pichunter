@@ -15,6 +15,10 @@
       "https://cdn.jsdelivr.net/gh/thomas-lowry/figma-plugin-ds/dist/",
       "https://rsms.me/",
       "https://images.figma.com"
-    ]
+    ],
+    "devAllowedDomains": [
+      "http://localhost:8000"
+    ],
+    "reasoning": "The plugin needs to access a local backend server on port 8000 for image processing and UI component recognition during development and testing."
   }
 }

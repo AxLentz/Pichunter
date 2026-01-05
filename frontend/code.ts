@@ -1,77 +1,48 @@
-import { ImageInfo, RecognitionResult } from "./types";
-import { simulateRecognition } from "./mockData";
-import { initializeSelectionExport } from "./selectionExport";
+import { initializeSelectionExport, getCurrentSelectionImage } from "./modules/recognition/logic/selectionExport";
+import { handleRecognitionRequest } from "./modules/recognition/logic/handlers/recognition.handler";
 
-// ============ 初始化 ============
+// ============ 1. 插件初始化 ============
 figma.showUI(__html__);
 figma.ui.resize(320, 640);
 
-// ============ 工具函数 ============
-function sendExportedImage(imgData: Uint8Array) {
-  figma.ui.postMessage({ type: "exportImage", data: imgData });
-}
-
-function clearSelectionPreview() {
-  figma.ui.postMessage({ type: "clearImage" });
-}
-
-function notifyExportError(error: string) {
-  figma.ui.postMessage({ type: "exportError", error });
-}
-
-// 执行初始化“选区导出监听器”函数, 并获取导出执行函数
+// ============ 2. 设置选区监听与导出 ============
 const triggerSelectionExport = initializeSelectionExport(figma, {
-  onImageExported: sendExportedImage,
-  onClear: clearSelectionPreview,
-  onError: notifyExportError,
+  onImageExported: (imgData) => figma.ui.postMessage({ type: "exportImage", data: imgData }),
+  onClear: () => figma.ui.postMessage({ type: "clearImage" }),
+  onError: (error) => figma.ui.postMessage({ type: "exportError", error }),
 });
 
-// 启动插件时主动调用一次导出，确保界面始终反映当前选区（并清掉旧图片）
+// 启动时同步一次选区状态
 triggerSelectionExport();
 
-// 监听来自UI的消息
+// ============ 3. 消息分发中心 ============
 figma.ui.onmessage = async (msg) => {
-  if (msg?.type === "submit") {
-    const selection = figma.currentPage.selection;
-    if (selection.length >= 1) {
-      console.log(`Selected node: ${selection[0].name}`);
-    }
-  } else if (msg?.type === "recognize") {
-    // 处理组件识别请求
-    await handleRecognitionRequest(msg.data);
+  switch (msg?.type) {
+    case "recognize":
+      try {
+        // [后端直连模式]：
+        // 收到 UI 的“开始识别”信号后，在此处(主线程)直接获取最新的选区图片，
+        // 而不是依赖 UI 层回传那个只有 3 字节的 mockData。
+        const imageData = await getCurrentSelectionImage();
+        
+        // 将真实的图片传给业务处理器
+        await handleRecognitionRequest(imageData);
+      } catch (error: any) {
+         figma.ui.postMessage({
+           type: "recognitionError",
+           error: error.message || "获取选区图片失败",
+         });
+      }
+      break;
+
+    case "submit":
+      const selection = figma.currentPage.selection;
+      if (selection.length >= 1) {
+        console.log(`Selected node: ${selection[0].name}`);
+      }
+      break;
+    
+    default:
+      console.warn("未知的消息类型:", msg?.type);
   }
 };
-
-// 处理识别请求的函数
-async function handleRecognitionRequest(imageData: Uint8Array) {
-  try {
-    // 发送开始识别的消息
-    figma.ui.postMessage({
-      type: "recognitionProgress",
-      data: { status: "processing", progress: 0 },
-    });
-
-    // 创建图片信息对象
-    const imageInfo: ImageInfo = {
-      width: 800, // 这里应该从实际图片获取，暂时用固定值
-      height: 600,
-      format: "PNG",
-      size: imageData.length,
-    };
-
-    // 模拟识别过程
-    const result: RecognitionResult = await simulateRecognition(imageInfo);
-
-    // 发送识别结果
-    figma.ui.postMessage({
-      type: "recognitionResult",
-      data: result,
-    });
-  } catch (error) {
-    // 发送错误消息
-    figma.ui.postMessage({
-      type: "recognitionError",
-      error: error instanceof Error ? error.message : "识别过程中发生未知错误",
-    });
-  }
-}

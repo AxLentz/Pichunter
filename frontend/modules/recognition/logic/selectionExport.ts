@@ -92,3 +92,22 @@ function exportSelectionAndSend(
 function isSupportedNode(node: SceneNode): boolean {
   return SUPPORTED_TYPES.has(node.type);
 }
+
+// 获取当前选中节点的图片数据 (一次性导出)
+export async function getCurrentSelectionImage(): Promise<Uint8Array> {
+  const selection = figma.currentPage.selection;
+  
+  if (selection.length !== 1) {
+    throw new Error("请选择一个节点进行识别");
+  }
+
+  const selectedNode = selection[0];
+  if (!isSupportedNode(selectedNode)) {
+    throw new Error("当前选中节点类型不支持导出");
+  }
+
+  return await selectedNode.exportAsync({
+    format: "PNG",
+    constraint: { type: "SCALE", value: 0.2 },
+  });
+}

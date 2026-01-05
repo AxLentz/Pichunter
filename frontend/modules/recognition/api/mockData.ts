@@ -7,7 +7,7 @@ import {
   ImageInfo,
   BoundingBox,
   ComponentProperties
-} from './types';
+} from '../types/recognition.types';
 
 /**
  * 生成随机边界框
