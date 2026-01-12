@@ -7,9 +7,10 @@ from io import BytesIO
 from typing import List
 
 # 第三方库
+from dotenv import load_dotenv  # 加载环境变量
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError  # 图片处理
 
 # 本地模块
 from .schemas import (
@@ -21,6 +22,12 @@ from .schemas import (
     RecognitionResult,
 )
 from .services.ai_service import GeminiService
+
+# ============================================
+# 配置加载
+# ============================================
+# 加载 .env 环境变量文件 - 优先级：系统环境变量 > .env 文件
+load_dotenv()
 
 # ============================================
 # 配置常量
