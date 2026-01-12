@@ -2,6 +2,7 @@
 # Imports
 # ============================================
 # 标准库
+import logging
 from datetime import datetime
 from io import BytesIO
 from typing import List
@@ -22,6 +23,14 @@ from .schemas import (
     RecognitionResult,
 )
 from .services.ai_service import GeminiService
+
+# ============================================
+# 日志配置
+# ============================================
+# 配置全局日志格式，确保各模块日志正常输出到终端
+logging.basicConfig(
+    level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s"
+)
 
 # ============================================
 # 配置加载

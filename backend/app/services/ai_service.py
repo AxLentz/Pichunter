@@ -2,17 +2,21 @@
 # Imports
 # ============================================
 # 标准库
-import os  # 操作系统接口，用于读取环境变量
 import json  # JSON 处理，用于解析 AI 返回的数据
+import logging  # 标准日志模块
+import os  # 操作系统接口，用于读取环境变量
 import time  # 时间处理，用于生成唯一 ID
+from typing import List, Optional  # 类型提示
 
 # 第三方库
 import google.generativeai as genai  # Google Gemini AI SDK
-from PIL import Image  # Pillow 图片处理库
-from typing import List, Optional  # 类型提示
 
 # 本地模块
-from app.schemas import ComponentResult, BoundingBox
+from app.schemas import BoundingBox, ComponentResult
+from PIL import Image  # Pillow 图片处理库
+
+# 配置日志记录器
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -56,12 +60,12 @@ class GeminiService:
             # 配置 Gemini SDK（全局设置）
             genai.configure(api_key=self.api_key)
 
-            # 使用 Gemini 2.5 Flash 模型（最新版本，速度快，免费额度高）
-            # 其他可选模型：gemini-2.5-pro（更强大但稍慢）
-            self.model = genai.GenerativeModel("gemini-2.5-flash")
+            # 使用经测试最稳健的模型别名 (gemini-flash-latest)
+            # 原为: gemini-2.5-flash
+            self.model = genai.GenerativeModel("gemini-flash-latest")
         else:
-            # 如果没有 API Key，打印警告并设置 model 为 None
-            print("WARNING: GEMINI_API_KEY 环境变量未设置")
+            # 如果没有 API Key，通过日志打印警告并设置 model 为 None
+            logger.warning("GEMINI_API_KEY 环境变量未设置")
             self.model = None
 
     async def recognize_components(self, image: Image.Image) -> List[ComponentResult]:
@@ -122,8 +126,12 @@ class GeminiService:
 
         try:
             # Step 4: 调用 Gemini API
-            # generate_content 接受两个参数：[prompt, image]
-            # generation_config 强制返回 JSON 格式
+            # 使用 perf_counter 提供更精确的性能计时
+            start_perf = time.perf_counter()
+
+            # 【即时反馈】在请求开始时打印日志
+            logger.info("正在发送请求给 Gemini API 进行 UI 组件识别...")
+
             response = self.model.generate_content(
                 [prompt, image],
                 generation_config={"response_mime_type": "application/json"},
@@ -181,12 +189,17 @@ class GeminiService:
                 )
                 components.append(component)
 
+            # 打印识别成功的统计信息
+            duration = time.perf_counter() - start_perf
+            logger.info(
+                f"Gemini 识别成功 - 耗时: {duration:.2f}s, 识别到组件数: {len(components)}"
+            )
+
             # Step 7: 返回识别结果
             return components
 
         except Exception as e:
-            # 捕获所有异常（网络错误、API 限流、模型错误等）
-            # 打印错误信息方便调试
-            print(f"Gemini API 调用失败: {str(e)}")
+            # 捕获所有异常并记录日志
+            logger.error(f"Gemini API 调用失败: {str(e)}")
             # 重新抛出异常，让上层代码处理（main.py 会返回 500 错误）
             raise e
