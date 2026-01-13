@@ -63,7 +63,7 @@ function exportSelectionAndSend(
 
     const exportPromise = selectedNode.exportAsync({
       format: "PNG",
-      constraint: { type: "SCALE", value: 0.2 },
+      constraint: { type: "SCALE", value: 1.0 },
     });
 
     currentExportPromise = exportPromise;
@@ -108,6 +108,6 @@ export async function getCurrentSelectionImage(): Promise<Uint8Array> {
 
   return await selectedNode.exportAsync({
     format: "PNG",
-    constraint: { type: "SCALE", value: 0.2 },
+    constraint: { type: "SCALE", value: 1.0 },
   });
 }

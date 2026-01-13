@@ -176,7 +176,7 @@
     .component-item__thumbnail-image {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
     }
 
     .component-item__thumbnail-placeholder {
@@ -554,15 +554,14 @@
           return null;
         }
 
-        const scaleX = naturalWidth / baseWidth;
-        const scaleY = naturalHeight / baseHeight;
-
-        const sourceX = clamp(Math.round(boundingBox.x * scaleX), 0, naturalWidth);
-        const sourceY = clamp(Math.round(boundingBox.y * scaleY), 0, naturalHeight);
+        // 直接使用后端返回的物理像素坐标进行裁剪
+        // 因为我们已经统一了导出倍率为 1.0，所以不再需要复杂的比例换算
+        const sourceX = clamp(Math.round(boundingBox.x), 0, naturalWidth);
+        const sourceY = clamp(Math.round(boundingBox.y), 0, naturalHeight);
         const maxWidth = naturalWidth - sourceX;
         const maxHeight = naturalHeight - sourceY;
-        const sourceWidth = clamp(Math.round(boundingBox.width * scaleX), 1, maxWidth);
-        const sourceHeight = clamp(Math.round(boundingBox.height * scaleY), 1, maxHeight);
+        const sourceWidth = clamp(Math.round(boundingBox.width), 1, maxWidth);
+        const sourceHeight = clamp(Math.round(boundingBox.height), 1, maxHeight);
 
         if (sourceWidth <= 0 || sourceHeight <= 0) {
           return null;
