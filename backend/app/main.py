@@ -22,7 +22,7 @@ from .schemas import (
     RecognitionResponse,
     RecognitionResult,
 )
-from .services.ai_service import GeminiService
+from .services.ai_service import ai_service
 
 # ============================================
 # 日志配置
@@ -56,8 +56,8 @@ SUPPORTED_CONTENT_TYPES: List[str] = ["image/png", "image/jpeg", "image/webp"]
 # 创建FastAPI应用实例 - 类似Swift创建UIApplication，是后端服务的核心
 app = FastAPI(title=SERVICE_NAME, version=SERVICE_VERSION)
 
-# 初始化 AI 服务
-ai_service = GeminiService()
+# 初始化 AI 服务 (通过 Factory 自动根据环境变量选择模型)
+# 已在 ai_service.py 中完成实例化，此处直接使用
 
 
 # 配置跨域中间件 - 类似iOS的App Transport Security设置，允许前端访问后端API

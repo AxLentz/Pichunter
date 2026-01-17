@@ -1,205 +1,228 @@
-# ============================================
-# Imports
-# ============================================
-# 标准库
-import json  # JSON 处理，用于解析 AI 返回的数据
-import logging  # 标准日志模块
-import os  # 操作系统接口，用于读取环境变量
-import time  # 时间处理，用于生成唯一 ID
-from typing import List, Optional  # 类型提示
+import base64
+import io
+import json
+import logging
+import os
+import time
+from abc import ABC, abstractmethod
+from typing import Dict, List, Type
 
-# 第三方库
-import google.generativeai as genai  # Google Gemini AI SDK
-
-# 本地模块
+import google.generativeai as genai
 from app.schemas import BoundingBox, ComponentResult
-from PIL import Image  # Pillow 图片处理库
+from dotenv import load_dotenv
+from openai import OpenAI
+from PIL import Image
 
-# 配置日志记录器
+# 加载环境变量
+load_dotenv()
+
+# 初始化日志记录器
 logger = logging.getLogger(__name__)
 
+# ============================================
+# 统一识别指令 (Prompt)
+# ============================================
+UI_RECOGNITION_PROMPT = """
+分析这张 UI 截图，识别其中的 UI 组件。
+返回 JSON 数组，每个对象包含以下字段：
+- "type": 组件类型，可选值：["button", "input", "image", "text", "icon", "card", "unknown"]
+- "label": 组件的文本内容或简短描述
+- "confidence": 置信度，0.0-1.0 之间的浮点数
+- "ymin": 上边界坐标（0-1000）
+- "xmin": 左边界坐标（0-1000）
+- "ymax": 下边界坐标（0-1000）
+- "xmax": 右边界坐标（0-1000）
+
+坐标系统：归一化到 1000x1000 网格。
+只返回 JSON 数组，不要其他内容。
+"""
+
 
 # ============================================
-# Gemini AI 服务类
+# 抽象基类 (接口定义)
 # ============================================
-class GeminiService:
-    """
-    Gemini AI 服务类 - 负责调用 Google Gemini API 进行 UI 组件识别
+class AIProvider(ABC):
+    """AI 服务提供商抽象基类，定义统一的识别接口"""
 
-    属性:
-        api_key: Google Gemini API 密钥（从环境变量读取）
-        model: Gemini 模型实例（用于生成内容）
+    @abstractmethod
+    async def recognize_components(self, image: Image.Image) -> List[ComponentResult]:
+        """识别图片中的 UI 组件接口"""
+        pass
 
-    核心功能：
-    1. 初始化 Gemini 模型（从环境变量读取 API Key）
-    2. 发送图片到 Gemini API 进行识别
-    3. 解析 AI 返回的 JSON 数据
-    4. 将归一化坐标转换为像素坐标
-    5. 返回符合项目规范的 ComponentResult 列表
-    """
+    def _convert_to_pixel_coords(
+        self,
+        normalized_results: List[dict],
+        width: int,
+        height: int,
+        provider_name: str,
+    ) -> List[ComponentResult]:
+        """统一的坐标转换逻辑：归一化(0-1000) -> 像素坐标"""
+        components: List[ComponentResult] = []
+        for i, item in enumerate(normalized_results):
+            # 获取归一化坐标并安全 fallback 为 0
+            ymin = item.get("ymin", 0)
+            xmin = item.get("xmin", 0)
+            ymax = item.get("ymax", item.get("ymin", 0))
+            xmax = item.get("xmax", item.get("xmin", 0))
 
-    # 属性类型声明（类似 Swift 的属性声明）
-    api_key: Optional[str]
-    model: Optional[genai.GenerativeModel]
+            # 缩放转换
+            x_px = int((xmin / 1000) * width)
+            y_px = int((ymin / 1000) * height)
+            w_px = max(1, int((xmax - xmin) / 1000 * width))
+            h_px = max(1, int((ymax - ymin) / 1000 * height))
+
+            components.append(
+                ComponentResult(
+                    id=f"{provider_name}-{i}-{int(time.time())}",
+                    type=item.get("type", "unknown"),
+                    label=item.get("label", ""),
+                    confidence=float(item.get("confidence", 1.0)),
+                    bbox=BoundingBox(x=x_px, y=y_px, width=w_px, height=h_px),
+                )
+            )
+        return components
+
+
+# ============================================
+# Google Gemini 实现
+# ============================================
+class GeminiProvider(AIProvider):
+    """Google Gemini AI 提供商实现"""
 
     def __init__(self) -> None:
-        """
-        初始化 Gemini 服务
-
-        流程：
-        1. 从环境变量 GEMINI_API_KEY 读取 API Key
-        2. 配置 Gemini SDK
-        3. 创建 Gemini 2.5 Flash 模型实例
-
-        注意：如果环境变量未设置，model 会是 None，调用时会抛出异常
-        """
-        # 从环境变量获取 API Key
-        self.api_key = os.environ.get("GEMINI_API_KEY")
-
-        if self.api_key:
-            # 配置 Gemini SDK（全局设置）
-            genai.configure(api_key=self.api_key)
-
-            # 使用经测试最稳健的模型别名 (gemini-flash-latest)
-            # 原为: gemini-2.5-flash
-            self.model = genai.GenerativeModel("gemini-flash-latest")
-        else:
-            # 如果没有 API Key，通过日志打印警告并设置 model 为 None
-            logger.warning("GEMINI_API_KEY 环境变量未设置")
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            logger.warning("GEMINI_API_KEY 未设置")
             self.model = None
+            return
+
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel("gemini-flash-latest")
+        logger.info("GeminiProvider 初始化成功")
 
     async def recognize_components(self, image: Image.Image) -> List[ComponentResult]:
-        """
-        识别图片中的 UI 组件
-
-        Args:
-            image: PIL Image 对象（已经过 Pillow 打开和验证）
-
-        Returns:
-            ComponentResult 列表，每个元素包含：
-            - id: 唯一标识符（格式：gemini-索引-时间戳）
-            - type: 组件类型（button, input, image, text, icon, card, unknown）
-            - label: 组件标签或描述
-            - confidence: 置信度（0.0-1.0）
-            - bbox: 边界框（像素坐标）
-
-        Raises:
-            ValueError: 如果 API Key 未配置
-            Exception: 如果 Gemini API 调用失败
-
-        工作流程：
-        1. 检查 API Key 是否配置
-        2. 获取图片尺寸（用于坐标转换）
-        3. 构建 Prompt（告诉 AI 要做什么）
-        4. 调用 Gemini API
-        5. 解析 JSON 响应
-        6. 转换坐标（归一化 → 像素）
-        7. 构建 ComponentResult 对象列表
-        """
-        # Step 1: 检查 API Key 是否配置
         if not self.model:
-            raise ValueError("GEMINI_API_KEY 未配置，无法调用 AI 服务")
+            raise ValueError("Gemini API Key 未配置")
 
-        # Step 2: 获取图片尺寸，用于后续坐标转换
-        # image.size 返回 (width, height) 元组
-        img_width, img_height = image.size
+        start_time = time.perf_counter()
+        logger.info(f"Gemini 开始识别，分辨率: {image.width}x{image.height}")
 
-        # Step 3: 构建 Prompt - 告诉 AI 我们需要什么格式的数据
-        # 关键点：
-        # 1. 明确要求返回 JSON 格式
-        # 2. 定义具体的字段结构
-        # 3. 使用归一化坐标（0-1000），便于不同尺寸图片统一处理
-        prompt = """
-        分析这张 UI 截图，识别其中的 UI 组件。
-        返回 JSON 数组，每个对象包含以下字段：
-        - "type": 组件类型，可选值：["button", "input", "image", "text", "icon", "card", "unknown"]
-        - "label": 组件的文本内容或简短描述
-        - "confidence": 置信度，0.0-1.0 之间的浮点数
-        - "ymin": 上边界坐标（0-1000）
-        - "xmin": 左边界坐标（0-1000）
-        - "ymax": 下边界坐标（0-1000）
-        - "xmax": 右边界坐标（0-1000）
-
-        坐标系统：归一化到 1000x1000 网格。
-        只返回 JSON 数组，不要其他内容。
-        """
+        response = self.model.generate_content(
+            [UI_RECOGNITION_PROMPT, image],
+            generation_config={"response_mime_type": "application/json"},
+        )
 
         try:
-            # Step 4: 调用 Gemini API
-            # 使用 perf_counter 提供更精确的性能计时
-            start_perf = time.perf_counter()
+            results = json.loads(response.text)
+        except json.JSONDecodeError:
+            logger.error(f"Gemini 返回了非格式化 JSON: {response.text}")
+            return []
 
-            # 【即时反馈】在请求开始时打印日志
-            logger.info("正在发送请求给 Gemini API 进行 UI 组件识别...")
+        duration = (time.perf_counter() - start_time) * 1000
+        components = self._convert_to_pixel_coords(
+            results, image.width, image.height, "gemini"
+        )
 
-            response = self.model.generate_content(
-                [prompt, image],
-                generation_config={"response_mime_type": "application/json"},
-            )
+        logger.info(
+            f"Gemini 识别成功 - 耗时: {duration:.2f}ms, 组件数: {len(components)}"
+        )
+        return components
 
-            # Step 5: 解析 JSON 响应
-            try:
-                # response.text 是字符串，需要用 json.loads 转换为 Python 对象
-                raw_results = json.loads(response.text)
-            except json.JSONDecodeError:
-                # 如果 AI 返回的不是有效 JSON，打印原始内容方便调试
-                print(f"JSON 解析失败。原始响应: {response.text}")
-                return []  # 返回空列表，避免程序崩溃
 
-            # Step 6: 转换为 ComponentResult 对象列表
-            components = []
-            for idx, item in enumerate(raw_results):
-                # 提取归一化坐标（0-1000 范围）
-                # 使用 get() 方法提供默认值 0，防止字段缺失导致错误
-                ymin = item.get("ymin", 0)
-                xmin = item.get("xmin", 0)
-                ymax = item.get("ymax", 0)
-                xmax = item.get("xmax", 0)
+# ============================================
+# OpenAI 实现
+# ============================================
+class OpenAIProvider(AIProvider):
+    """OpenAI GPT-4o-mini / GPT-4o 提供商实现"""
 
-                # 坐标转换：归一化坐标 → 像素坐标
-                # 公式：像素值 = (归一化值 / 1000) * 图片实际尺寸
-                # 例如：xmin=500, img_width=1920 → x_px = (500/1000)*1920 = 960
-                x_px = int((xmin / 1000) * img_width)
-                y_px = int((ymin / 1000) * img_height)
-                w_px = int((xmax - xmin) / 1000 * img_width)
-                h_px = int((ymax - ymin) / 1000 * img_height)
+    def __init__(self) -> None:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            logger.warning("OPENAI_API_KEY 未设置")
+            self.client = None
+            return
 
-                # 数据清洗：确保宽高至少为 1 像素（避免无效的边界框）
-                w_px = max(1, w_px)
-                h_px = max(1, h_px)
+        self.client = OpenAI(api_key=api_key)
+        self.model_name = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        logger.info(f"OpenAIProvider ({self.model_name}) 初始化成功")
 
-                # 构建 ComponentResult 对象
-                component = ComponentResult(
-                    # 生成唯一 ID：gemini-索引-时间戳
-                    # 例如：gemini-0-1733567890
-                    id=f"gemini-{idx}-{int(time.time())}",
-                    # 组件类型（button, input 等）
-                    type=item.get("type", "unknown"),
-                    # 组件标签（如按钮上的文字）
-                    label=item.get("label", "未知元素"),
-                    # 置信度（AI 对识别结果的确信程度）
-                    confidence=float(item.get("confidence", 0.0)),
-                    # 边界框（像素坐标）
-                    bbox=BoundingBox(
-                        x=x_px,  # 左上角 X 坐标
-                        y=y_px,  # 左上角 Y 坐标
-                        width=w_px,  # 宽度
-                        height=h_px,  # 高度
-                    ),
-                )
-                components.append(component)
+    async def recognize_components(self, image: Image.Image) -> List[ComponentResult]:
+        if not self.client:
+            raise ValueError("OpenAI API Key 未配置")
 
-            # 打印识别成功的统计信息
-            duration = time.perf_counter() - start_perf
-            logger.info(
-                f"Gemini 识别成功 - 耗时: {duration:.2f}s, 识别到组件数: {len(components)}"
-            )
+        # 转换 PIL Image 为 Base64 字节流
+        buffered = io.BytesIO()
+        image.save(buffered, format="PNG")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-            # Step 7: 返回识别结果
-            return components
+        start_time = time.perf_counter()
+        logger.info(f"OpenAI 开始识别，模型: {self.model_name}")
 
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": UI_RECOGNITION_PROMPT},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{img_base64}"},
+                        },
+                    ],
+                }
+            ],
+            response_format={"type": "json_object"},
+        )
+
+        # OpenAI 返回的 JSON 在 content 字段中
+        content = response.choices[0].message.content
+        if not content:
+            return []
+
+        try:
+            # OpenAI 有时会在 JSON 外套一层字段名，视 prompt 而定
+            data = json.loads(content)
+            # 如果 AI 返回的是 {"components": [...]} 格式，则提取列表
+            results = data.get("components", data) if isinstance(data, dict) else data
+            # 如果还是 list 格式则直接使用
+            if not isinstance(results, list):
+                results = results if isinstance(results, list) else []
         except Exception as e:
-            # 捕获所有异常并记录日志
-            logger.error(f"Gemini API 调用失败: {str(e)}")
-            # 重新抛出异常，让上层代码处理（main.py 会返回 500 错误）
-            raise e
+            logger.error(f"OpenAI 解析失败: {str(e)}, 原始内容: {content}")
+            return []
+
+        duration = (time.perf_counter() - start_time) * 1000
+        components = self._convert_to_pixel_coords(
+            results, image.width, image.height, "openai"
+        )
+
+        logger.info(
+            f"OpenAI 识别成功 - 耗时: {duration:.2f}ms, 组件数: {len(components)}"
+        )
+        return components
+
+
+# ============================================
+# 策略工厂 (即插即用中心)
+# ============================================
+class AIServiceFactory:
+    """提供商工厂，支持根据环境变量动态加载服务"""
+
+    _providers: Dict[str, Type[AIProvider]] = {
+        "gemini": GeminiProvider,
+        "openai": OpenAIProvider,
+    }
+
+    @classmethod
+    def create(cls) -> AIProvider:
+        provider_name = os.environ.get("AI_PROVIDER", "gemini").lower()
+        provider_class = cls._providers.get(provider_name, GeminiProvider)
+
+        logger.info(f"已动态切换至 AI 提供商: {provider_class.__name__}")
+        return provider_class()
+
+
+# 为了保持与 main.py 现状的兼容性，默认导出一个 factory 实例
+# 这样原有代码 ai_service.recognize_components 依然有效
+ai_service = AIServiceFactory.create()
